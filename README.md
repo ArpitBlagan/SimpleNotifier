@@ -2,7 +2,7 @@
 
 ### Implemetation
 
-- For this we simply create an django app where user can register a website which he want to get monitored as user hit the post route we store the info and simple start a thread which will pool the website's url on every particular interval of time and keep if the status doesn't match with previous one we send discord notification to the user user webhook.
+- For this we simply create an django app where user can register a website which he want to get monitored as user hit the post route we store the info and simple start a thread which will pool the website's url on every particular interval of time and if the status doesn't match with previous one we send discord notification to the user using webhook.
 - we use async/await , asyncio rate limitation, added a docker file etc.
 
 #### About the app
