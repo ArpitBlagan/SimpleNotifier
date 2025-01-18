@@ -20,9 +20,9 @@ from .models import Website, StatusHistory  # Ensure this imports the models cor
 async def notify_on_discord(website,statusHistory):
     
     payload = {
-        "content":f"Status update 👀\nName: {website.name}\nURL: {website.url}\nStatus: {statusHistory.status}",
+        "content":f"Status update 👀\n",
             "embeds": [{
-            "title": "Status Update",
+            "title": "Alert ‼️",
             "fields": [
                 {"name": "Name", "value": website.name},
                 {"name": "URL", "value": website.url},
