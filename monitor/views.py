@@ -1,20 +1,18 @@
 import threading
-import time
-import requests
 import json
 import os
-import httpx
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.views.decorators.csrf import csrf_exempt
 from asgiref.sync import sync_to_async
 from urllib.parse import urlparse
-import requests.exceptions
 from django_ratelimit.decorators import ratelimit
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-
-from .models import Website, StatusHistory  # Ensure this imports the models correctly
-
+from .middlewares import jwt_required
+from .models import Website, StatusHistory,User  # Ensure this imports the models correctly
+import httpx
+import asyncio
 
 
 async def notify_on_discord(website,statusHistory):
@@ -46,10 +44,52 @@ async def notify_on_discord(website,statusHistory):
     except httpx.HTTPError as e:
         print("Something went wrong while sending notification to discrod",e)
         return False
-        
-        
+
+def logout_view(request):
+    response = JsonResponse({'message': 'Logout successful'})
+    response.delete_cookie('jwt')
+    return response    
 
 
+@api_view(['POST'])
+def authenticate_user(request):
+    body = json.loads(request.body)
+    email = body.get('email')
+    password = body.get('password')
+    if not email or not password:
+        return Response({"message": "Email and password are required"}, status=400)
+
+    try:
+        # Attempt to retrieve the user by email
+        user = User.objects.get(email=email)
+        # Check if the provided password is correct
+        if user.password != password:
+            return Response({"message": "Invalid credentials"}, status=401)
+        refresh = RefreshToken.for_user(user)
+        response = JsonResponse({'message': 'Login successful'})
+        response.set_cookie(
+            key='jwt',
+            value=str(refresh.access_token),
+            httponly=True,  # Prevent access from JavaScript
+            secure=True,   # Use secure flag for HTTPS
+            samesite='Lax'  # Adjust depending on your needs
+        )
+        return response
+    except User.DoesNotExist:
+        # If user does not exist, create a new one
+        user = User.objects.create(email=email,password=password)
+        refresh = RefreshToken.for_user(user)
+        response = JsonResponse({'message': 'Login successful'})
+        response.set_cookie(
+            key='jwt',
+            value=str(refresh.access_token),
+            httponly=True,  # Prevent access from JavaScript
+            secure=True,   # Use secure flag for HTTPS
+            samesite='Lax'  # Adjust depending on your needs
+        )
+        return response
+    # Prepare response with tokens in cookies
+    
 
 
 @api_view(['GET'])
@@ -66,7 +106,6 @@ def get_website(request, id):
         return Response(website_data, status=200)
     except Website.DoesNotExist:
         return Response({"message": "Website with the given ID is not found :("}, status=404)
-
 
 
 @api_view(['GET'])
@@ -86,6 +125,7 @@ def get_histories(request):
     
     return Response(websites,status=200)    
 
+@jwt_required
 @ratelimit(key='ip', rate='5/m')
 @api_view(['POST'])
 def add_website(request):
@@ -110,6 +150,7 @@ def add_website(request):
         print(e)
         return Response({"message": "Internal server error"}, status=500)
 
+@jwt_required
 @ratelimit(key='ip', rate='5/m')
 @api_view(['DELETE'])
 def delete_website(request, id):
@@ -127,10 +168,7 @@ def delete_website(request, id):
     except Website.DoesNotExist:
         return JsonResponse({"error": "Website not found"}, status=404)
 
-import httpx
-import asyncio
-from asgiref.sync import sync_to_async
-from .models import StatusHistory  # Adjust based on your project structure
+ # Adjust based on your project structure
 
 async def monitor_website(website):
     previous_status = None
@@ -187,3 +225,4 @@ def start_monitoring(website):
     thread = threading.Thread(target=run_monitor)
     thread.daemon = True  # Allow thread to exit when main program does
     thread.start()
+

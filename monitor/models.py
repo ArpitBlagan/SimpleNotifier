@@ -2,7 +2,13 @@ from django.db import models
 
 # Create your models here.
 
+class User(models.Model):
+    email=models.EmailField()
+    password=models.CharField(max_length=20)
+    is_active=models.BooleanField(default=True)
+
 class Website(models.Model):
+    user=models.ForeignKey(User, on_delete=models.CASCADE),
     url = models.URLField(unique=True)
     name=models.CharField(max_length=20)
     poolAfter=models.IntegerField(default=50)
