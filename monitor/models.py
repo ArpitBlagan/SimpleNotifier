@@ -15,8 +15,12 @@ class Website(models.Model):
         self.save()  # Save the change to stop monitoring
         
         super().delete(*args, **kwargs) 
+    def __str__(self):
+        return self.name
 
 class StatusHistory(models.Model):
     website = models.ForeignKey(Website, on_delete=models.CASCADE)
     status = models.CharField(max_length=10)  # 'up' or 'down'
     checked_at = models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        return self.website
